@@ -12,22 +12,38 @@ require("dotenv").config();
 const mongodb = require("mongodb");
 const MongoClient = require("mongodb").MongoClient;
 const ObjectID = require("mongodb").ObjectID;
+
 let db;
+// Connects to database
+const dbSetup = async () => {
+  try {
+    console.log(process.env.DB)
+  let client = new MongoClient(process.env.DB);
+  await client.connect();
+  console.log("Connected to DB");
+  db = client.db();
+  }catch (e) {
+    console.log("MongoDB Connection Error. Please make sure that MongoDB is running.\n" + e);
+    process.exit(1);
+  }
+};
+
+
 
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use("/public", express.static(process.cwd() + "/public"));
 
 // Displays the form
-app.route("/").get((req, res) => {
+app.get("/", (_req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
 // Streams the audio
-app.route("/api/audio/:id").get((req, res) => {
+app.get("/api/audio/:id", (req, res) => {
   try {
     var trackId = new ObjectID(req.params.id);
-  } catch (err) {
+  } catch {
     return res.status(400).json({
       message:
         "Invalid ID in URL parameter. Must be a single String of 12 bytes or a string of 24 hex characters",
@@ -42,14 +58,11 @@ app.route("/api/audio/:id").get((req, res) => {
   });
 
   let downloadStream = bucket.openDownloadStream(trackId);
-
   downloadStream.on("data", (chunk) => res.write(chunk));
-
-  downloadStream.on("error", () => res.sendStatus(404));
-
-  downloadStream.on("end", () => {
-    res.end();
-  });
+  downloadStream.on("error", () =>
+    res.status(404).send("Unable to stream audio")
+  );
+  downloadStream.on("end", () => res.end());
 });
 
 // Stores the audio and displays the result
@@ -93,23 +106,8 @@ app.post("/api/audio", (req, res) => {
   });
 });
 
-/**
- * Sets up the DB
- */
-const dbSetup = async () => {
-  try {
-    // Connects to database
-    let client = await MongoClient.connect(process.env.DB);
-    db = client.db("audioHosting");
-  } catch {
-    console.log(
-      "MongoDB Connection Error. Please make sure that MongoDB is running."
-    );
-    process.exit(1);
-  }
-};
-
 const listener = app.listen(3210, () => {
-  dbSetup();
+    dbSetup();
+
   console.log("Your app is listening on port " + listener.address().port);
 });
