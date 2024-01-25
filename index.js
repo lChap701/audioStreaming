@@ -39,32 +39,6 @@ app.get("/", (_req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
-// Streams the audio
-app.get("/api/audio/:id", (req, res) => {
-  try {
-    var trackId = new ObjectID(req.params.id);
-    res.set("content-type", "audio/wav");
-    res.set("accept-ranges", "bytes");
-
-    let bucket = new mongodb.GridFSBucket(db, {
-      bucketName: "tracks",
-    });
-
-    let downloadStream = bucket.openDownloadStream(trackId);
-    downloadStream.on("data", (chunk) => res.write(chunk));
-    downloadStream.on("error", () =>
-      res.status(404).send("Unable to stream audio")
-    );
-    downloadStream.on("end", () => res.end());
-  } catch (e) {
-    console.log(e);
-    res.status(400).json({
-      message:
-        "Invalid ID in URL parameter. Must be a single String of 12 bytes or a string of 24 hex characters",
-    });
-  }
-});
-
 // Stores the audio and displays the result
 app.post("/api/audio", (req, res) => {
   const storage = multer.memoryStorage();
@@ -102,6 +76,32 @@ app.post("/api/audio", (req, res) => {
       });
     });
   });
+});
+
+// Streams the audio
+app.get("/api/audio/:id", (req, res) => {
+  try {
+    var trackId = new ObjectID(req.params.id);
+    res.set("content-type", "audio/wav");
+    res.set("accept-ranges", "bytes");
+
+    let bucket = new mongodb.GridFSBucket(db, {
+      bucketName: "tracks",
+    });
+
+    let downloadStream = bucket.openDownloadStream(trackId);
+    downloadStream.on("data", (chunk) => res.write(chunk));
+    downloadStream.on("error", () =>
+      res.status(404).send("Unable to stream audio")
+    );
+    downloadStream.on("end", () => res.end());
+  } catch (e) {
+    console.log(e);
+    res.status(400).json({
+      message:
+        "Invalid ID in URL parameter. Must be a single String of 12 bytes or a string of 24 hex characters",
+    });
+  }
 });
 
 const listener = app.listen(3210, () => {
