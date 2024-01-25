@@ -17,18 +17,18 @@ let db;
 // Connects to database
 const dbSetup = async () => {
   try {
-    console.log(process.env.DB)
-  let client = new MongoClient(process.env.DB);
-  await client.connect();
-  console.log("Connected to DB");
-  db = client.db();
-  }catch (e) {
-    console.log("MongoDB Connection Error. Please make sure that MongoDB is running.\n" + e);
+    let client = new MongoClient(process.env.DB);
+    await client.connect();
+    console.log("Connected to DB");
+    db = client.db();
+  } catch (e) {
+    console.log(
+      "MongoDB Connection Error. Please make sure that MongoDB is running.\n" +
+        e
+    );
     process.exit(1);
   }
 };
-
-
 
 const app = express();
 app.use(cors({ origin: "*" }));
@@ -107,7 +107,7 @@ app.post("/api/audio", (req, res) => {
 });
 
 const listener = app.listen(3210, () => {
-    dbSetup();
+  dbSetup();
 
   console.log("Your app is listening on port " + listener.address().port);
 });
