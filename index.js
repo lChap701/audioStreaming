@@ -10,8 +10,8 @@ const { Readable } = require("stream");
 require("dotenv").config();
 
 const mongodb = require("mongodb");
-const MongoClient = require("mongodb").MongoClient;
-const ObjectID = require("mongodb").ObjectID;
+const ObjectID = require("mongodb").ObjectId;
+const { MongoClient } = require("mongodb");
 
 let db;
 // Connects to database
@@ -43,26 +43,26 @@ app.get("/", (_req, res) => {
 app.get("/api/audio/:id", (req, res) => {
   try {
     var trackId = new ObjectID(req.params.id);
-  } catch {
-    return res.status(400).json({
+    res.set("content-type", "audio/wav");
+    res.set("accept-ranges", "bytes");
+
+    let bucket = new mongodb.GridFSBucket(db, {
+      bucketName: "tracks",
+    });
+
+    let downloadStream = bucket.openDownloadStream(trackId);
+    downloadStream.on("data", (chunk) => res.write(chunk));
+    downloadStream.on("error", () =>
+      res.status(404).send("Unable to stream audio")
+    );
+    downloadStream.on("end", () => res.end());
+  } catch (e) {
+    console.log(e);
+    res.status(400).json({
       message:
         "Invalid ID in URL parameter. Must be a single String of 12 bytes or a string of 24 hex characters",
     });
   }
-
-  res.set("content-type", "audio/wav");
-  res.set("accept-ranges", "bytes");
-
-  let bucket = new mongodb.GridFSBucket(db, {
-    bucketName: "tracks",
-  });
-
-  let downloadStream = bucket.openDownloadStream(trackId);
-  downloadStream.on("data", (chunk) => res.write(chunk));
-  downloadStream.on("error", () =>
-    res.status(404).send("Unable to stream audio")
-  );
-  downloadStream.on("end", () => res.end());
 });
 
 // Stores the audio and displays the result
@@ -72,11 +72,9 @@ app.post("/api/audio", (req, res) => {
 
   upload.single("upfile")(req, res, (err) => {
     if (err) {
-      return res
-        .status(400)
-        .json({ message: "Upload Request Validation Failed" });
+      res.status(400).json({ message: "Upload Request Validation Failed" });
     } else if (!req.file.originalname) {
-      return res.status(400).json({ message: "No name in request file" });
+      res.status(400).json({ message: "No name in request file" });
     }
 
     let trackName = req.file.originalname.split(".")[0];
@@ -108,6 +106,5 @@ app.post("/api/audio", (req, res) => {
 
 const listener = app.listen(3210, () => {
   dbSetup();
-
   console.log("Your app is listening on port " + listener.address().port);
 });
